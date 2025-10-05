@@ -1,144 +1,149 @@
-/*
-https://www.careercup.com/question?id=5677905146281984
-https://github.com/arjunsk/samsung_interview/blob/master/wormhole.cpp
-https://gist.github.com/gunpreet34/b58c38b3556271059182244676ba06a1
-https://hack.codingblocks.com/contests/c/782/870
-https://discuss.codingblocks.com/t/test-case-of-minimum-time-traversal-problem/12944
-
-http://ideone.com/Sbx7MA
-*/
-
-/*
-There is one spaceship. X and Y co-odinate of source of spaceship and destination spaceship is given.
-There are N number of warmholes; each warmhole has 5 values. First 2 values are starting co-ordinate
-of warmhole and after that value no. 3 and 4 represents ending co-ordinate of warmhole and last 5th 
-value is represents cost to pass through this warmhole. Now these warmholes are bi-directional. Now 
-the to go from (x1,y1) to (x2,y2) is abs(x1-x2)+abs(y1-y2). The main problem here is to find minimum 
-distance to reach spaceship from source to destination co-ordinate using any number of warm-hole. 
-It is ok if you wont use any warmhole.
-*/
 #include <iostream>
+#include <vector>
+#include <cmath>
+#include <algorithm>
 #include <climits>
+#include <queue>
+#include <tuple>
+
 using namespace std;
 
-int ANS = INT_MAX, n, temp = 0;
-int w[35][5];
-int mask[35];
+// Use a large value for infinity (long long is necessary for distances)
+const long long INF = 1e18; 
 
-int abs(int i){
-    return (i>=0) ? i : -1*i;
+// Wormhole structure
+struct Wormhole {
+    long long x1, y1, x2, y2, cost;
+};
+
+// Represents a weighted edge (destination vertex, weight/cost)
+using Edge = pair<int, long long>;
+
+// Manhattan distance calculator
+long long manhattan_dist(long long x1, long long y1, long long x2, long long y2) {
+    return abs(x1 - x2) + abs(y1 - y2);
 }
 
-int min(int x, int y){
-    return (x>=y) ? y : x;
-}
+// Function to solve the problem using Dijkstra's algorithm
+long long solve_dijkstra() {
+    int N; // Number of wormholes
+    if (!(cin >> N)) return 0;
+    
+    long long sX, sY, tX, tY; // Source and Destination coordinates
+    if (!(cin >> sX >> sY >> tX >> tY)) return 0;
 
-int dist(int sX, int sY, int tX, int tY){
-    return abs(sX-tX) + abs(sY-tY);
-}
+    // V = 2 (Source/Dest) + 2*N (Wormhole endpoints)
+    int V = 2 * N + 2; 
 
-void wormhole(int sX, int sY, int tX, int tY, int value){
-    ANS = min(ANS, dist(sX, sY, tX, tY) + value);
+    // Store the coordinates of all V points (indexed 0 to V-1)
+    vector<pair<long long, long long>> coords(V);
+    
+    // Store the wormholes
+    vector<Wormhole> wormholes(N);
 
-    for(int i=0; i<n; i++){
-        if(mask[i] == 0){
-            mask[i] = 1;
+    // 1. Map all physical points to vertices
+    
+    // Vertex 0: Source
+    coords[0] = {sX, sY};
+    
+    // Read wormholes and map endpoints to vertices
+    for (int i = 0; i < N; ++i) {
+        cin >> wormholes[i].x1 >> wormholes[i].y1 >> wormholes[i].x2 >> wormholes[i].y2 >> wormholes[i].cost;
+        
+        // Vertex 1 to N: Start points (index i + 1)
+        coords[i + 1] = {wormholes[i].x1, wormholes[i].y1};
+        // Vertex N+1 to 2N: End points (index i + N + 1)
+        coords[i + N + 1] = {wormholes[i].x2, wormholes[i].y2};
+    }
 
-            /* Choose lower end of wormhole */
-            temp = dist(sX, sY, w[i][0], w[i][1]) + w[i][4] + value;
-            wormhole(w[i][2], w[i][3], tX, tY, temp);
+    // Vertex 2N+1: Destination
+    coords[V - 1] = {tX, tY};
 
-            /* Choose upper end of wormhole */
-            temp = dist(sX, sY, w[i][2], w[i][3]) + w[i][4] + value;
-            wormhole(w[i][0], w[i][1], tX, tY, temp);
-
-            mask[i] = 0;
+    // 2. Build the Adjacency List
+    // Since the graph is dense (fully connected by Manhattan distance), 
+    // it's easier to calculate the edge weight on the fly in Dijkstra's.
+    // If we pre-calculate the graph, it's O(V^2) edges.
+    
+    // An initial distance matrix to store the minimum cost between any two points
+    // (either Manhattan distance or wormhole shortcut)
+    vector<vector<long long>> adj_dist(V, vector<long long>(V, INF));
+    
+    // a) Initialize with Manhattan Distance
+    for (int i = 0; i < V; ++i) {
+        for (int j = 0; j < V; ++j) {
+            if (i == j) {
+                adj_dist[i][j] = 0;
+            } else {
+                adj_dist[i][j] = manhattan_dist(coords[i].first, coords[i].second, coords[j].first, coords[j].second);
+            }
         }
     }
+
+    // b) Apply Wormhole Costs
+    for (int i = 0; i < N; ++i) {
+        int u = i + 1;       // Start point vertex index
+        int v = i + N + 1;   // End point vertex index
+        long long cost = wormholes[i].cost;
+
+        // Wormhole is bi-directional: update with the minimum of current cost (Manhattan) and wormhole cost.
+        adj_dist[u][v] = min(adj_dist[u][v], cost);
+        adj_dist[v][u] = min(adj_dist[v][u], cost);
+    }
+    
+    // 3. Dijkstra's Algorithm
+    
+    // Priority Queue: pair<long long, int> = {cost, vertex_index}
+    // min-heap is used to extract the path with the smallest cost first
+    priority_queue<pair<long long, int>, vector<pair<long long, int>>, greater<pair<long long, int>>> pq;
+    
+    // Distance vector: dist[i] stores the shortest cost from source (0) to vertex i
+    vector<long long> dist(V, INF);
+    
+    int source = 0;
+    dist[source] = 0;
+    pq.push({0, source}); // {cost, source_vertex}
+    
+    int destination = V - 1;
+
+    while (!pq.empty()) {
+        long long d = pq.top().first;
+        int u = pq.top().second;
+        pq.pop();
+
+        // Check for stale entry
+        if (d > dist[u]) continue;
+
+        // Found the destination, can stop early
+        if (u == destination) return dist[u];
+
+        // Relax edges to all other vertices (dense graph)
+        for (int v = 0; v < V; ++v) {
+            if (u == v) continue;
+            
+            long long weight = adj_dist[u][v]; // Weight of edge u -> v
+
+            if (dist[u] + weight < dist[v]) {
+                dist[v] = dist[u] + weight;
+                pq.push({dist[v], v});
+            }
+        }
+    }
+
+    // If the loop finishes, the shortest distance is in dist[destination]
+    return dist[destination];
 }
 
 int main() {
-    int t, sX, sY, tX, tY;
-    cin >> t;
-    while(t--){
-    	ANS = INT_MAX;
-        cin >> n;
-        cin >> sX >> sY >> tX >> tY;
-        for(int i=0; i<n; i++){
-            mask[i] = 0;
-            for(int j=0; j<5; j++){
-                cin >> w[i][j];
-            }
-        }
+    // Fast I/O
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
 
-        wormhole(sX, sY, tX, tY, 0);
-        cout << ANS << endl;
+    int t; // Number of test cases
+    if (!(cin >> t)) return 0;
+    
+    while (t--) {
+        cout << solve_dijkstra() << "\n";
     }
+
     return 0;
 }
-
-// #include<iostream>
-// using namespace std;
-
-// int n, a[2001][6];
- 
-// int min(int x , int y){
-//     return(x>=y) ? y : x ;
-// }
-
-// int abs(int x){
-// 	return (x > 0) ? x : -x ;
-// }
-
-// int dist(int x1 , int y1 , int x2 , int y2){
-// 	return abs(x2-x1) + abs(y2 - y1);
-// }
-
-// void wormhole ( int x1 , int y1 , bool *visited , int &ans , int val ) {
-// 	if ( x1 == a[n+1][0] && y1 == a[n+1][1] ){
-// 		ans = min ( ans , val);
-// 	    return ;
-// 	}
-	    
-// 	for ( int i = 1 ; i <= n + 1 ;i++) {
-// 		if (!visited[i]) {
-// 	    	visited[i] = true ;
-	    	 	 
-// 	    	//entry
-// 	    	wormhole ( a[i][2] , a[i][3] , visited , ans , val + dist ( x1 , y1 , a[i][0] , a[i][1] ) + a[i][4]);
-	    	
-// 	    	//exit
-// 	    	wormhole ( a[i][0] , a[i][1] , visited , ans , val + dist ( x1 , y1 , a[i][2] , a[i][3] ) + a[i][4]);
-	    	 	 
-// 	    	visited[i] = false;
-// 		}
-// 	}	
-// }
-
-// int main(){
-//     int t;	cin >> t ;
-//     for (int i = 1; i <= t ; i++){
-// 		cin >> n;
-// 	    int sx, sy, dx,dy;
-// 		cin>>sx>>sy>>dx>>dy; 
-		 
-// 		a[0][0] = sx ; a[0][1] = sy ; a[0][2] = sx ; a[0][3] = sy ; a[0][4] = 0 ;
-		 
-//         for ( int i = 1 ; i <= n ;i++ ){
-// 			cin >> a[i][0] >> a[i][1] >> a[i][2] >> a[i][3] >> a[i][4];
-// 		}	
-		 
-//         a[n+1][0] = dx ; a[n+1][1] = dy ; a[n+1][2] = dx ; a[n+1][3] = dy ; a[n+1][4] = 0 ;
-         
-//         int ans ;  
-//         bool visited[n+2] = { false };
-
-//         ans = dist (a[0][0] , a[0][1] , a[n+1][0] , a[n+1][1]);        
-//         visited[0] = true ;
-           
-//         wormhole(sx ,sy , visited , ans , 0);
-          
-//         cout << "#" << i << " : " << ans << endl;
-//   	}
-//   return 0;
-// }
