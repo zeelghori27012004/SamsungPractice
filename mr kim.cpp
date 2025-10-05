@@ -1,176 +1,308 @@
-/* 
-https://www.careercup.com/question?id=5745468609921024 
-https://gist.github.com/gunpreet34/d0e45eedd61dadbf42fe6540da98facf
-https://ideone.com/SlO2P5 - BitMasking Solution
-http://ideone.com/tdNRtQ - TARGET_SAMSUNG
-*/
-
-/*
-Mr. Kim has to deliver refrigerators to N customers. From the office, he is going to visit all the customers and then return to his home. 
-Each location of the office, his home, and the customers is given in the form of integer coordinates (x,y) (0≤x≤100, 0≤y≤100) . 
-The distance between two arbitrary locations (x1, y1) and (x2, y2) is computed by |x1-x2| + |y1-y2|, where |x| denotes the absolute value 
-of x; for instance, |3|=|-3|=3. The locations of the office, his home, and the customers are all distinct. You should plan an optimal way 
-to visit all the N customers and return to his among all the possibilities.
-You are given the locations of the office, Mr. Kim’s home, and the customers; the number of the customers is in the range of 5 to 10. 
-Write a program that, starting at the office, finds a (the) shortest path visiting all the customers and returning to his home. 
-Your program only have to report the distance of a (the) shortest path.
-
-Constraints
-
-5≤N≤10. Each location (x,y) is in a bounded grid, 0≤x≤100, 0≤y≤100, and x, y are integers.
-
-Input
-
-You are given 10 test cases. Each test case consists of two lines; the first line has N, the number of the customers, and the 
-following line enumerates the locations of the office, Mr. Kim’s home, and the customers in sequence. Each location consists of 
-the coordinates (x,y), which is reprensented by ‘x y’.
-
-Output
-
-Output the 10 answers in 10 lines. Each line outputs the distance of a (the) shortest path. Each line looks like ‘#x answer’ 
-where x is the index of a test case. ‘#x’ and ‘answer’ are separated by a space.
-
-I/O Example
-
-Input (20 lines in total. In the first test case, the locations of the office and the home are (0, 0) and (100, 100) respectively, 
-and the locations of the customers are (70, 40), (30, 10), (10, 5), (90, 70), (50, 20).)
-
-5 ← Starting test case #1
-
-0 0 100 100 70 40 30 10 10 5 90 70 50 20
-
-6 ← Starting test case #2
-
-88 81 85 80 19 22 31 15 27 29 30 10 20 26 5 14
-
-10 ← Starting test case #3
-
-39 9 97 61 35 93 62 64 96 39 36 36 9 59 59 96 61 7 64 43 43 58 1 36
-
-Output (10 lines in total)
-
-#1 200
-
-#2 304
-
-#3 366
-*/
-#include<iostream>
-#include<climits>
-using namespace std;
-int x[20],y[20],n,ans;
-
-int abs(int i){//Absolute function
-	if(i>0){
-		return i;
-	}
-	return -i;
-}
-
-int dist(int i, int j){//Calc dist between 2 points
-    int x1 = x[i], x2 = x[j];
-    int y1 = y[i], y2 = y[j];
-    
-    return (abs(x1-x2) + abs(y1-y2));
-}
-
-void optimalPath(int x,bool visited[],int nodes,int value){
-	if(n == nodes){//If number of nodes equal n then set value of answer
-		ans = min(ans,value + dist(x,n+1));
-	}
-	for(int i=1;i<=n;i++){
-		if(!visited[i]){
-			visited[i] = true;
-			optimalPath(i,visited,nodes+1,value + dist(x,i));//Dfs call
-			visited[i] = false;
-		}
-	}
-}
-
-int main(){
-	int tCases;
-	cin >> tCases;//For testcases
-	for(int i=0;i<tCases;i++){
-		ans=INT_MAX;//Set ans to max value
-		cin >> n;
-		cin >> x[n+1] >> y[n+1] >> x[0] >> y[0];//Input destination and source x,y coordinates
-		for(int i=1;i<=n;i++){//Input drop off location coordinates
-			cin >> x[i] >> y[i];
-		}
-		bool visited[n+2]={false};
-		optimalPath(0,visited,0,0);
-		cout << "#" << i+1 << " " << ans << endl;
-	}
-	return 0;
-}
-
-/*
 #include <iostream>
-#include <cstring>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+#include <climits>
+
 using namespace std;
 
-bool marked[105][105];
-
-struct point {
-    int x;
-    int y;
+// Structure to hold coordinates
+struct Point {
+    int x, y;
 };
 
-int absDiff(point i, point j)
-{
-    int xd = (i.x > j.x) ? i.x - j.x : j.x - i.x ;
-    int yd = (i.y > j.y) ? i.y - j.y : j.y - i.y ;
-    return xd + yd ;
+/**
+ * @brief Calculates the Manhattan distance between two points.
+ * @param p1 First point.
+ * @param p2 Second point.
+ * @return The Manhattan distance: |x1 - x2| + |y1 - y2|.
+ */
+int manhattan_dist(const Point& p1, const Point& p2) {
+    return abs(p1.x - p2.x) + abs(p1.y - p2.y);
 }
 
-int solve(point a, point b, point arr[], point &end, int nodes)
-{
-    int curDist = absDiff(a, b);
-    marked[b.x][b.y] = 1;
-    int dist = 0, minDist = 1000007 ;
-    for(int i = 0; i < nodes; i++){
-        if(marked[arr[i].x][arr[i].y] == 0){
-            dist = solve(b, arr[i], arr, end, nodes);
-            if(dist < minDist)
-                minDist = dist ;
+/**
+ * @brief Recursive Depth-First Search (Backtracking) to explore all permutations of customer visits.
+ * * @param N The total number of customers.
+ * @param D The pre-calculated distance matrix (D[i][j] = distance between location i and j).
+ * @param current_loc_index Index of the last location visited (0: Office, 1..N: Customer, N+1: Home).
+ * @param visited_count Number of customers visited so far.
+ * @param current_distance Distance accumulated up to current_loc_index.
+ * @param min_total_cost Reference to the global minimum path length found.
+ * @param visited_customers Boolean array to track visited customers (indices 1 to N).
+ */
+void find_shortest_path_dfs(int N, const vector<vector<int>>& D, 
+                            int current_loc_index, int visited_count, 
+                            int current_distance, int& min_total_cost, 
+                            vector<bool>& visited_customers) {
+
+    // --- Optimization (Pruning) ---
+    // If the current path is already longer than the best path found so far, stop.
+    if (current_distance >= min_total_cost) {
+        return;
+    }
+
+    // --- Base Case: All customers visited ---
+    if (visited_count == N) {
+        // The final leg is from the current location to the Home (index N + 1)
+        int total_cost = current_distance + D[current_loc_index][N + 1];
+        min_total_cost = min(min_total_cost, total_cost);
+        return;
+    }
+
+    // --- Recursive Step: Try to visit the next unvisited customer ---
+    // Customer indices range from 1 to N
+    for (int next_customer_index = 1; next_customer_index <= N; ++next_customer_index) {
+        
+        // Check if the customer has NOT been visited yet
+        if (!visited_customers[next_customer_index]) {
+            
+            // 1. Mark as visited
+            visited_customers[next_customer_index] = true;
+            
+            // 2. Calculate the cost to reach this new customer
+            int cost_to_next = D[current_loc_index][next_customer_index];
+            
+            // 3. Recursive Call (DFS)
+            find_shortest_path_dfs(
+                N, D, 
+                next_customer_index,                // New current location
+                visited_count + 1,                  // One more customer visited
+                current_distance + cost_to_next,    // New accumulated distance
+                min_total_cost, 
+                visited_customers
+            );
+            
+            // 4. Backtrack (Unmark as visited for the next permutation/path)
+            visited_customers[next_customer_index] = false;
         }
     }
-    marked[b.x][b.y] = 0;
-    if(minDist == 1000007){
-        minDist = absDiff(b, end);
+}
+
+/**
+ * @brief Solves the Kim's Refrigerator Delivery problem using Recursive Backtracking (DFS).
+ */
+void solve_test_case(int t) {
+    int N; // Number of customers (5 <= N <= 10)
+    if (!(cin >> N)) return;
+
+    // Total number of locations: Office (0), N Customers (1 to N), Home (N+1)
+    const int M = N + 2;
+    vector<Point> locations(M);
+
+    // Read Office (index 0) and Home (index N+1) coordinates
+    // Input order is Office x, y, then Home x, y.
+    cin >> locations[0].x >> locations[0].y;
+    cin >> locations[N + 1].x >> locations[N + 1].y;
+
+    // Read Customer coordinates (indices 1 to N)
+    for (int i = 1; i <= N; ++i) {
+        cin >> locations[i].x >> locations[i].y;
     }
+
+    // --- 1. Pre-calculate all inter-location distances ---
+    // D[i][j] stores the distance between location i and location j.
+    vector<vector<int>> D(M, vector<int>(M));
+    for (int i = 0; i < M; ++i) {
+        for (int j = 0; j < M; ++j) {
+            D[i][j] = manhattan_dist(locations[i], locations[j]);
+        }
+    }
+
+    // --- 2. Initialization for DFS ---
+    int min_total_cost = INT_MAX;
     
-    return curDist + minDist ;
+    // We only track the N customers (indices 1 to N). Size N+1 for 1-based indexing.
+    vector<bool> visited_customers(N + 1, false); 
+
+    // Start the DFS from the Office (index 0). 
+    // Initial visited count is 0, initial distance is 0.
+    find_shortest_path_dfs(
+        N, D, 
+        0,                  // Start at Office (index 0)
+        0,                  // 0 customers visited initially
+        0,                  // 0 distance accumulated initially
+        min_total_cost,     // Reference to the answer
+        visited_customers
+    );
+
+    // Output the result
+    cout << "#" << t << " " << min_total_cost << "\n";
 }
 
-int main()
-{
-    int test;
-    cin >> test ;
-    for(int l = 1; l <= test; l++){
-        
-        int nodes;
-        cin >> nodes ;
-        point start, end;
-        point arr[nodes + 3];
-        
-        cin >> start.x >> start.y ;
-        cin >> end.x >> end.y ;
-        
-        for(int u = 0; u < nodes; u++){
-            cin >> arr[u].x >> arr[u].y ;
-        }
-        
-        int dist = 0, minDist = 100007 ;
-        for(int i = 0; i < nodes; i++){
-            memset(marked, 0, sizeof(bool) * (nodes + 2) * (nodes + 2));
-            dist = solve(start, arr[i], arr, end, nodes);
-            if(dist < minDist)
-                minDist = dist ;
-        }
-        
-        cout << "#" << l << " " << minDist << endl ;
+int main() {
+    // Fast I/O
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
+
+    int tCases;
+    // Read the total number of test cases
+    if (!(cin >> tCases)) return 0;
+
+    for (int t = 1; t <= tCases; ++t) {
+        solve_test_case(t);
     }
+
     return 0;
 }
-*/
+
+
+
+
+Recursion + memoiztion
+
+
+#include <iostream>
+#include <vector>
+#include <cmath>
+#include <algorithm>
+#include <climits>
+
+using namespace std;
+
+// Structure to hold coordinates
+struct Point {
+    int x, y;
+};
+
+// Define a large constant for initialization of the memoization table
+const int INF = 1000000000; 
+
+/**
+ * @brief Calculates the Manhattan distance between two points.
+ * @param p1 First point.
+ * @param p2 Second point.
+ * @return The Manhattan distance: |x1 - x2| + |y1 - y2|.
+ */
+int manhattan_dist(const Point& p1, const Point& p2) {
+    return abs(p1.x - p2.x) + abs(p1.y - p2.y);
+}
+
+/**
+ * @brief Recursive function with memoization to find the shortest path 
+ * from current_loc_index to Home, visiting all unvisited customers.
+ *
+ * DP State: memo[mask][i] stores the minimum total distance required to 
+ * visit all customers NOT yet in 'mask', starting from location 'i' (current_loc_index), 
+ * and ending the path at Home.
+ *
+ * @param N Total number of customers (1 to N).
+ * @param D Pre-calculated distance matrix.
+ * @param current_loc_index Index of the current location (0=Office, 1..N=Customer).
+ * @param mask Bitmask indicating which customers (1..N) have been visited (bit j set means customer j+1 visited).
+ * @param memo Memoization table (DP table).
+ * @return The minimum distance from current_loc_index to Home, visiting the remaining customers.
+ */
+int tsp_memo(int N, const vector<vector<int>>& D, 
+             int current_loc_index, int mask, 
+             vector<vector<int>>& memo) {
+
+    // --- Base Case: All customers visited ---
+    // The target mask is where all N bits are set: (1 << N) - 1
+    if (mask == (1 << N) - 1) {
+        // All customers visited. The remaining path is just the distance to Home (N+1).
+        return D[current_loc_index][N + 1];
+    }
+
+    // --- Check Memoization Table ---
+    if (memo[mask][current_loc_index] != INF) {
+        return memo[mask][current_loc_index];
+    }
+
+    int min_remaining_distance = INF;
+
+    // --- Recursive Step: Try to visit the next unvisited customer ---
+    // Customer indices range from 1 to N
+    for (int next_customer_index = 1; next_customer_index <= N; ++next_customer_index) {
+        
+        // (next_customer_index - 1) is the 0-based bit index for customer 'next_customer_index'
+        int bit_index = next_customer_index - 1;
+
+        // Check if the next customer has NOT been visited yet (bit is NOT set)
+        if (!(mask & (1 << bit_index))) {
+            
+            // Calculate the next mask (turn on the bit for the next customer)
+            int next_mask = mask | (1 << bit_index);
+            
+            // Cost of the current leg: from current_loc_index to next_customer_index
+            int cost_to_next = D[current_loc_index][next_customer_index];
+            
+            // Recursive call to find the minimum cost for the remaining path
+            int remaining_path_cost = tsp_memo(N, D, next_customer_index, next_mask, memo);
+            
+            // We must check if the remaining path is reachable before summing to prevent INF+cost_to_next overflow/corruption
+            if (remaining_path_cost != INF) {
+                int total_branch_cost = cost_to_next + remaining_path_cost;
+                min_remaining_distance = min(min_remaining_distance, total_branch_cost);
+            }
+        }
+    }
+
+    // Store the result in the memo table before returning
+    return memo[mask][current_loc_index] = min_remaining_distance;
+}
+
+/**
+ * @brief Solves the Kim's Refrigerator Delivery problem using Recursive Backtracking with Memoization.
+ */
+void solve_test_case(int t) {
+    int N; // Number of customers (5 <= N <= 10)
+    if (!(cin >> N)) return;
+
+    // Total number of locations: Office (0), N Customers (1 to N), Home (N+1)
+    const int M = N + 2;
+    vector<Point> locations(M);
+
+    // Read Office (index 0) and Home (index N+1) coordinates
+    // Input order is Office x, y, then Home x, y.
+    cin >> locations[0].x >> locations[0].y;
+    cin >> locations[N + 1].x >> locations[N + 1].y;
+
+    // Read Customer coordinates (indices 1 to N)
+    for (int i = 1; i <= N; ++i) {
+        cin >> locations[i].x >> locations[i].y;
+    }
+
+    // --- 1. Pre-calculate all inter-location distances ---
+    // D[i][j] stores the distance between location i and location j.
+    vector<vector<int>> D(M, vector<int>(M));
+    for (int i = 0; i < M; ++i) {
+        for (int j = 0; j < M; ++j) {
+            D[i][j] = manhattan_dist(locations[i], locations[j]);
+        }
+    }
+
+    // --- 2. Memoization Table Initialization ---
+    // Size: [2^N masks] x [N+1 locations (0=Office, 1..N=Customer)]
+    const int num_masks = 1 << N;
+    vector<vector<int>> memo(num_masks, vector<int>(N + 1, INF)); 
+
+    // --- 3. Initial Call ---
+    // Start the DP from the Office (index 0), with mask 0 (no customers visited).
+    // The result is the minimum total cost of the path.
+    int min_total_cost = tsp_memo(
+        N, D, 
+        0,                  // Start at Office (index 0)
+        0,                  // Mask 0 (no customers visited)
+        memo
+    );
+
+    // Output the result
+    cout << "#" << t << " " << min_total_cost << "\n";
+}
+
+int main() {
+    // Fast I/O
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
+
+    int tCases;
+    // Read the total number of test cases
+    if (!(cin >> tCases)) return 0;
+
+    for (int t = 1; t <= tCases; ++t) {
+        solve_test_case(t);
+    }
+
+    return 0;
+}
