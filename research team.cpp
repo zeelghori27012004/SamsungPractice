@@ -61,7 +61,7 @@ int run_bfs(int N, int C, const vector<vector<int>>& region,
             // Check boundaries (1-based indexing) and if unvisited
             if (nr >= 1 && nr <= N && nc >= 1 && nc <= N && visited[nr][nc] == -1) {
                 // Check if the neighbor is a road
-                if (region[nr][nc] == 1) {
+                if (region[nr][nc] == 1 || region[nr][nc] == 3) { //If lab is also considered as road
                     visited[nr][nc] = dist + 1;
                     q.push({nr, nc, dist + 1});
                 }
