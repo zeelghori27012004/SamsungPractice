@@ -1,271 +1,143 @@
-/*
-https://www.careercup.com/question?id=5707238197952512
-https://practice.geeksforgeeks.org/problems/how-to-solve-this-bfs-problem-asked-in-samsung
-https://discuss.codechef.com/t/samsung-question-geeksforgeeks/17092
+#include <iostream>
+#include <vector>
+#include <queue>
+#include <tuple>
+#include <algorithm>
+#include <climits>
 
-1 Bsed -> https://sapphireengine.com/@/4q0evk - Ajay Verma
-0 Bsed -> https://sapphireengine.com/@/iha4kq - Thusoo
-*/
+using namespace std;
 
-/*
-A Research team want to establish a research center in a region where they found some rare-elements.
-They want to make it closest to all the rare-elements as close as possible so that they can reduce
-overall cost of research over there. It is given that all the rare-element’s location is connected
-by roads. It is also given that Research Center can only be build on road. Team decided to assign
-this task to a coder. If you feel you have that much potential.
+// Maximum size constraint N <= 20
+const int MAX_N = 22;
 
-Here is the Task :- Find the shortest of the longest distance of research center from given locations
-of rare-elements.
+// Directions for BFS (Up, Down, Left, Right)
+int dr[] = {-1, 1, 0, 0};
+int dc[] = {0, 0, -1, 1};
 
-Locations are given in the matrix cell form where 1 represents roads and 0 no road. 
-Number of rare-element and their location was also given(number<=5) and order of square matrix
-was less than equal to (20).
-*/
+// Structure to hold a cell coordinate and distance
+struct Cell {
+    int r, c, dist;
+};
 
-/*
-For this you have to implement bfs for every position where road exist to find the distance of 
-every research center or do Vice-versa. for each position store maximum distance of all distances
-to research center and the compare each maximum distance to find minimum of them
+/**
+ * @brief Performs Breadth-First Search (BFS) starting from (start_r, start_c)
+ * and returns the maximum shortest distance to any rare-element location.
+ *
+ * @param N Grid size.
+ * @param C Number of rare-element locations.
+ * @param region The grid map (1=road, 0=no road).
+ * @param locations Vector of rare-element coordinates.
+ * @param start_r Row of the potential research center.
+ * @param start_c Column of the potential research center.
+ * @return The maximum shortest distance to a rare-element location. Returns INT_MAX if any element is unreachable.
+ */
+int run_bfs(int N, int C, const vector<vector<int>>& region, 
+            const vector<pair<int, int>>& locations, 
+            int start_r, int start_c) {
 
-Input - 
-6
-5 2
-4 3
-3 4
-1 1 0 0 0
-1 1 0 0 0
-1 1 1 1 1
-1 1 1 0 1
-1 1 1 1 1
-8 2
-5 6
-6 4
-1 1 1 1 1 1 0 0
-1 1 1 1 1 1 1 0
-1 1 0 1 0 1 1 0
-1 1 1 1 0 1 1 0
-1 1 1 1 1 1 1 0
-1 1 1 1 1 1 1 0
-0 0 0 0 0 0 0 0
-0 0 0 0 0 0 0 0
-10 3
-8 2
-5 3
-7 1
-0 0 0 1 1 1 1 1 1 0
-1 1 1 1 1 1 1 1 1 0
-1 0 0 1 0 0 0 0 1 0
-1 1 1 1 1 1 1 1 1 1
-1 1 1 1 0 1 0 0 1 1
-1 1 1 1 0 1 0 0 1 1
-1 1 1 1 0 1 0 0 1 1
-1 1 1 1 1 1 1 1 1 1
-1 1 1 0 0 1 0 0 1 1
-1 1 1 1 1 1 1 1 1 1
-15 4
-11 15
-15 9
-1 2
-14 3
-1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-1 0 1 1 1 1 1 1 1 1 1 1 1 0 1
-1 0 1 0 0 0 1 0 0 0 0 1 1 0 1
-1 0 1 0 0 0 1 0 0 0 0 1 1 0 1
-1 0 1 1 1 1 1 1 1 1 1 1 1 1 1
-1 0 1 0 0 0 1 0 0 0 0 1 1 0 1
-1 0 1 0 0 0 1 1 1 1 1 1 1 1 1
-1 0 1 0 0 0 1 0 0 0 0 1 1 0 1
-1 0 1 0 0 0 1 0 0 0 0 1 1 0 1
-1 0 1 0 0 0 1 0 0 0 0 1 1 0 1
-1 0 1 0 0 0 1 0 0 0 0 1 1 0 1
-1 0 1 0 0 0 1 0 0 0 0 1 1 0 1
-1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-0 0 1 0 0 0 1 1 1 1 1 1 1 0 1
-0 0 1 1 1 1 1 1 1 1 1 1 1 1 1
-20 4
-13 6
-20 4
-1 2
-17 16
-1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0
-1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0
-1 0 1 0 0 0 0 0 0 0 1 0 0 1 1 0 0 0 0 0
-1 0 1 0 0 0 0 0 0 0 1 0 0 1 1 0 0 0 0 0
-1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 0 0
-1 0 1 0 0 0 0 0 0 0 1 0 0 1 1 1 0 0 0 0
-1 0 1 0 0 0 0 0 0 0 1 0 0 1 1 1 0 0 0 0
-1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-1 0 1 0 0 0 0 0 0 0 1 0 0 1 1 1 0 0 1 1
-1 0 1 0 0 0 0 0 0 0 1 0 0 1 1 1 0 0 1 1
-1 0 1 0 0 0 0 0 0 0 1 0 0 1 1 1 0 0 1 1
-1 0 1 0 0 0 0 0 0 0 1 0 0 1 1 1 0 0 1 1
-1 0 1 1 1 1 1 1 1 1 1 1 1 1 1 1 0 0 1 1
-1 0 1 0 0 0 0 0 0 0 1 0 0 0 1 1 0 0 1 1
-1 0 1 0 0 0 0 0 0 0 1 0 0 0 1 1 0 0 1 1
-1 0 1 0 0 0 0 0 0 0 1 0 0 0 1 1 0 0 1 1
-1 0 1 0 0 0 0 0 0 0 1 0 0 0 1 1 0 0 1 1
-1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1 1
-1 1 1 1 1 1 1 1 1 1 1 0 0 0 0 0 0 0 0 0
-5 2
-2 1
-3 5
-1 0 1 1 1
-1 1 1 0 1
-0 1 1 0 1
-0 1 0 1 1
-1 1 1 0 1
+    // visited array stores the shortest distance from (start_r, start_c).
+    // Initialized to -1 (unvisited).
+    vector<vector<int>> visited(N + 1, vector<int>(N + 1, -1));
+    queue<Cell> q;
 
-Output - 
-1
-2
-2
-12
-15
-4
-*/
+    // Start BFS from the potential research center
+    q.push({start_r, start_c, 0});
+    visited[start_r][start_c] = 0;
 
-#include <stdio.h>
-int Answer = 9999;
-int region[22][22];
-int visited[22][22];
-int N, C;
-int location[5][2];
-int rear = -1;
-int front = -1;
-struct queue {
-    int row;
-    int col;
-}Q[10000];
+    // Standard iterative BFS
+    while (!q.empty()) {
+        Cell current = q.front();
+        q.pop();
 
-void init()
-{
-    int m,n;
-    rear = -1;
-    front = -1;
-    for(m = 0; m < 22; m++)
-    {
-        for(n = 0; n < 22; n++)
-        {
-            visited[m][n] = 0;
-        }
-    }
+        int r = current.r;
+        int c = current.c;
+        int dist = current.dist;
 
-    for(m = 0; m < 10000; m++)
-    {
-        Q[m].row = 0;
-        Q[n].col = 0;
-    }
-}
+        // Explore neighbors
+        for (int i = 0; i < 4; ++i) {
+            int nr = r + dr[i];
+            int nc = c + dc[i];
 
-void discover(int row, int col, int val)
-{
-    int l, m, k;
-    int cnt = 0;
-
-    for(k = 0; k < C; k++)
-    {
-        if(visited[location[k][0]][location[k][1]] > 0)
-            cnt++;
-    }
-    if(cnt >= C)
-        return;
-
-    if((row-1) >= 1 && visited[row-1][col] == 0 && (region[row-1][col] == 1 || region[row-1][col] == 3))
-    {
-        visited[row-1][col] = val+1;
-        ++rear;
-        Q[rear].row = row-1;
-        Q[rear].col = col;
-    }
-    if((row+1) <= N && visited[row+1][col] == 0 && (region[row+1][col] == 1 || region[row+1][col] == 3))
-    {
-        visited[row+1][col] = val+1;
-        ++rear;
-        Q[rear].row = row+1;
-        Q[rear].col = col;
-    }
-    if((col-1) >= 1 && visited[row][col-1] == 0 && (region[row][col-1] == 1 || region[row][col-1] == 3))
-    {
-        visited[row][col-1] = val+1;
-        ++rear;
-        Q[rear].row = row;
-        Q[rear].col = col-1;
-    }
-    if((col+1) <= N && visited[row][col+1] == 0 && (region[row][col+1] == 1 || region[row][col+1] == 3))
-    {
-        visited[row][col+1] = val+1;
-        ++rear;
-        Q[rear].row = row;
-        Q[rear].col = col+1;
-    }
-    
-    while(front<rear)
-    {
-        ++front;
-        discover(Q[front].row, Q[front].col, visited[Q[front].row][Q[front].col]);
-    }
-
-}
-
-int main(void){
-    int T, test_case;
-
-    scanf("%d", &T);
-    for(test_case = 0; test_case < T; test_case++)
-    {
-        int i,j,k;
-        int x,y,c;
-        int temp = 0;
-
-        Answer = 9999;
-
-        scanf("%d%d", &N, &C);
-
-        for(i = 0; i < C; i++)
-        {
-            scanf("%d%d", &x, &y);
-            location[i][0] = x;
-            location[i][1] = y;
-        }
-
-        for(i = 1; i <= N; i++)
-        {
-            for(j = 1; j <= N; j++)
-            {
-                scanf("%d", &region[i][j]);
-            }
-        }
-        for(k = 0; k < C; k++)
-        {
-            region[location[k][0]][location[k][1]] = 3;
-        }
-
-        init();
-        Answer = 9999;
-        for(i = 1; i <= N; i++)
-        {
-            for(j = 1; j <= N; j++)
-            {
-                init();
-                temp = 0;
-                if(region[i][j] == 1)
-                {
-                    visited[i][j] = 1;
-                    discover(i, j, 1);
-                    for(k = 0; k < C; k++)
-                    {
-                        if(temp < visited[location[k][0]][location[k][1]])
-                            temp = visited[location[k][0]][location[k][1]];
-                    }
-                    if(Answer > temp)
-                        Answer = temp;
+            // Check boundaries (1-based indexing) and if unvisited
+            if (nr >= 1 && nr <= N && nc >= 1 && nc <= N && visited[nr][nc] == -1) {
+                // Check if the neighbor is a road
+                if (region[nr][nc] == 1) {
+                    visited[nr][nc] = dist + 1;
+                    q.push({nr, nc, dist + 1});
                 }
-                
             }
         }
-        printf("#%d %d\n", test_case+1, Answer-1);
     }
-    return 0;
+
+    // 2. Calculate the maximum shortest distance (D_max) to the rare-elements
+    int max_dist = 0;
+    for (const auto& loc : locations) {
+        int r_loc = loc.first;
+        int c_loc = loc.second;
+
+        // The distance is stored in visited[r_loc][c_loc]
+        int dist_to_element = visited[r_loc][c_loc];
+
+        // If any rare-element location is unreachable, this center is invalid
+        if (dist_to_element == -1) {
+            return INT_MAX; // Use a very large value
+        }
+        
+        // Update the maximum distance
+        max_dist = max(max_dist, dist_to_element);
+    }
+
+    return max_dist;
 }
 
+void solve() {
+    int T;
+    if (!(cin >> T)) return; // Read number of test cases
+
+    for (int t = 1; t <= T; ++t) {
+        int N, C;
+        if (!(cin >> N >> C)) return; // Read N (size) and C (count)
+
+        // 1-based indexing for input: locations and grid size N+1
+        vector<pair<int, int>> locations(C);
+        for (int i = 0; i < C; ++i) {
+            cin >> locations[i].first >> locations[i].second;
+        }
+
+        vector<vector<int>> region(N + 1, vector<int>(N + 1));
+        for (int i = 1; i <= N; ++i) {
+            for (int j = 1; j <= N; ++j) {
+                cin >> region[i][j];
+            }
+        }
+
+        int min_max_distance = INT_MAX;
+
+        // 1. Iterate through every cell as a potential research center (r, c)
+        for (int r = 1; r <= N; ++r) {
+            for (int c = 1; c <= N; ++c) {
+                
+                // The center MUST be built on a road
+                if (region[r][c] == 1) {
+                    
+                    // 2. Run BFS from this road cell
+                    int current_max_dist = run_bfs(N, C, region, locations, r, c);
+                    
+                    // 3. Find the minimum of all D_max values
+                    min_max_distance = min(min_max_distance, current_max_dist);
+                }
+            }
+        }
+
+        // Output the result for the current test case
+        cout << min_max_distance << endl;
+    }
+}
+
+// int main() {
+//     // For faster input/output
+//     ios_base::sync_with_stdio(false);
+//     cin.tie(NULL);
+//     solve();
+//     return 0;
+// }
