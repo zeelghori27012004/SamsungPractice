@@ -139,3 +139,17 @@ int main() {
 
     return 0;
 }
+
+
+
+Why we copy dp instead of updating in-place
+
+In your DP, each height h can only be used once.
+
+dp[d] represents the maximum shorter pillar height achievable with difference d before considering h.
+
+If you update dp directly while iterating over all d, then:
+
+A newly updated state (using h) may be read again in the same iteration.
+
+This would allow h to be used multiple times, which is incorrect because each pillar height can only be used once.
