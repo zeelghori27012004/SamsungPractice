@@ -1,110 +1,157 @@
-/*
-https://www.geeksforgeeks.org/samsung-competency-test-25-aug-19/
-*/
-/*
-	----IIT(ISM) Dhanbad----
-	Author: Siddhant Choudhary
-	
-	--samsumg coding test--
-	
-	Q.There is a large plot with various sinkholes present. 
-	Since one sinkhole can combine with another sinkhole, it is required to get
-	at most one sinkhole while occupying the plot. You have to find the maximum 
-	square-area formed with at most one sinkhole present.
-	If there are two plots with the same area then print the one with 
-	lesser sinkhole present otherwise if the sinkholes are also same then print
-	anyone. For each case, you have to print the bottom leftmost coordinate and 
-	top rightmost point. Please keep in mind that the plot starts with (1, 1).
-
-	Time limit= 1sec and Memory limit– 256Mb
-
-	Input: First line will give the number of test cases. For each test case, we
-	will be given the size of the plot matrix N x M (where 1<=N, M<=1000). Next
-	line will give the number of sinkholes present in the matrix K (1<=K<=N+M). 
-	Next, K-lines will give the coordinates of the sinkholes.
-
-	Output: For each test case, you have to print the number of the test case
-	and the coordinates of the resultant square.
-	i.e. #i xb yb xt yt (ith test case, xb=bottomost left x-coordinate, 
-	yb=bottomost  left y-coordinate, xt= topmost right x-coordinate,
-	yt= topmost right y-coordinate)
-	
-  *	time complexity of my approach = O(n*m*log(min(m,n))) *
-*/
-
 #include <iostream>
+#include <vector>
+#include <algorithm>
+#include <tuple> // For returning the best square info
+#include <climits> // Use standard INT_MAX
+
 using namespace std;
 
-#define INT_MAX 100000;
+// Global variables to store the coordinates of the best square found
+// (side, sinkholes, xb, yb, xt, yt)
+tuple<int, int, int, int, int, int> best_square = {0, 2, 0, 0, 0, 0};
 
-int xb,yb,xt,yt;
+/**
+ * @brief Checks if a square of side length 'k' is feasible (i.e., at least one 
+ * k x k square has <= 1 sinkhole).
+ * Also updates the global 'best_square' if a better or equal square of size 'k' is found.
+ * * @param dp The 2D prefix sum array.
+ * @param N Plot height.
+ * @param M Plot width.
+ * @param k Side length of the square to check.
+ * @return true if a k x k square with <= 1 sinkhole exists, false otherwise.
+ */
+bool check(const vector<vector<int>>& dp, int N, int M, int k){
+    if (k == 0) return true;
+    
+    // Minimum number of sinkholes found for a k x k square
+    int min_ones = INT_MAX; 
+    
+    // Iterate over all possible top-left corners (r, c) in 0-based indexing
+    for(int r = 0; r <= N-k; r++){
+        for(int c = 0; c <= M-k; c++){
+            
+            // Calculate sum of sinkholes in the k x k square starting at (r, c)
+            // Top-Left corner of square (0-indexed A-array): (r, c)
+            // Bottom-Right corner of square (0-indexed A-array): (r+k-1, c+k-1)
+            // DP indices are 1-based size indices, so (r+k, c+k) is the bottom-right corner of the DP rectangle
+            int sum = dp[r+k][c+k] - dp[r][c+k] - dp[r+k][c] + dp[r][c];
+            
+            min_ones = min(min_ones, sum);
 
-int fun(int dp[][1001], int N, int M, int k){
-	int msum = INT_MAX;
-	for(int i=0; i<=N-k; i++){
-		for(int j=0; j<=M-k; j++){
-			int sum = dp[i+k][j+k]-dp[i+k][j]-dp[i][j+k]+dp[i][j];
-			if(sum < msum){
-				msum = sum;
-				if(msum <=1){
-					xb = i+k;
-					yb = j+1;
-					xt = i+1;
-					yt = j+k;
-				}
-			}
-		}
-	}
-	return msum;
+            // If a feasible square is found (0 or 1 sinkhole)
+            if (sum <= 1) {
+                // Convert 0-indexed corners (r, c) to 1-indexed output coordinates
+                int xb_new = r + k;     // Bottom-Left X (Row is X)
+                int yb_new = c + 1;     // Bottom-Left Y (Col is Y)
+                int xt_new = r + 1;     // Top-Right X
+                int yt_new = c + k;     // Top-Right Y
+                
+                // Update best_square based on priority:
+                // 1. Maximize side length (k)
+                // 2. Minimize sinkholes (sum)
+                
+                // Get current best side and sinkholes
+                auto [current_k, current_ones, _, __, ___, ____] = best_square;
+
+                // Check for a better square
+                if (k > current_k || (k == current_k && sum < current_ones)) {
+                    best_square = {k, sum, xb_new, yb_new, xt_new, yt_new};
+                }
+                // If area and sinkholes are equal, just update (as required by "print anyone")
+                else if (k == current_k && sum == current_ones) {
+                    best_square = {k, sum, xb_new, yb_new, xt_new, yt_new};
+                }
+            }
+        }
+    }
+    
+    return min_ones <= 1;
+}
+
+void solve(int test_case_num) {
+    int N, M; // N=Rows (X-coordinate), M=Columns (Y-coordinate)
+    if (!(cin >> N >> M)) return;
+
+    // 0-indexed grid for sinkhole presence
+    vector<vector<int>> A(N, vector<int>(M, 0)); 
+    
+    int K;
+    cin >> K;
+    for(int i=0; i<K; i++){
+        int x, y;
+        cin >> x >> y;
+        // Convert 1-based input coordinates (x, y) to 0-based grid indices (x-1, y-1)
+        A[x-1][y-1] = 1; 
+    }
+    
+    // 2D Prefix Sum array (1-indexed for easy sum calculation)
+    vector<vector<int>> dp(N+1, vector<int>(M+1, 0));
+    for(int i=1; i<=N; i++){
+        for(int j=1; j<=M; j++){
+            dp[i][j] = dp[i-1][j] + dp[i][j-1] - dp[i-1][j-1] + A[i-1][j-1];
+        }
+    }
+
+    // Reset best square for this test case
+    best_square = {0, 2, 0, 0, 0, 0}; // side=0, sinkholes=2 (invalid), coords=0
+
+    // Binary Search for the maximum side length L
+    int L = 1, R = min(N, M);
+    int max_L = 0;
+    
+    while(L <= R){
+        int mid = L + (R-L)/2;
+        
+        // check(mid) also updates best_square if a size 'mid' square is better than current
+        if(check(dp, N, M, mid)){
+            max_L = mid; // 'mid' is a possible answer
+            L = mid + 1; // Try for an even larger square
+        } else {
+            R = mid - 1; // Square size 'mid' is too large
+        }
+    }
+
+    // After BS, max_L holds the maximum possible side length.
+    // The 'best_square' variables should already hold the best square found during the BS process.
+    if (max_L > 0) {
+        // Find the absolute best square of size max_L, prioritizing 0 sinkholes
+        // We call check(max_L) one more time to ensure the coordinates for the optimal
+        // square (0 sinkholes) of size max_L are correctly saved, in case the BS logic
+        // skipped over the coordinate update during a non-maximal L update.
+        check(dp, N, M, max_L); 
+    }
+
+    // Extract the final results
+    auto [side, sinkholes, xb_final, yb_final, xt_final, yt_final] = best_square;
+    
+    // Edge case: if max_L is 0 (e.g., N=0 or M=0), output should handle it, though N,M >= 1
+    if (max_L == 0 && N >= 1 && M >= 1) {
+        // The smallest possible square is 1x1. Since K <= N+M, 1x1 with <= 1 sinkhole is guaranteed.
+        // We set the result to the 1x1 square at (1, 1).
+        xb_final = 1; yb_final = 1; xt_final = 1; yt_final = 1;
+    } else if (max_L == 0) {
+        // If N=0 or M=0, print default 0s (although constraints say N, M >= 1)
+        xb_final = 0; yb_final = 0; xt_final = 0; yt_final = 0;
+    }
+
+
+    // Output the result in the required format
+    cout << "#" << test_case_num << " " 
+         << xb_final << " " << yb_final << " " 
+         << xt_final << " " << yt_final << "\n";
 }
 
 int main() {
-	ios_base::sync_with_stdio(0);
-	cin.tie(0);
-	/* input */
-	int N,M;
-	cin>>N>>M;
-	int A[N][M];
-	for(int i=0; i<N; i++){
-		for(int j=0; j<M; j++){
-			A[i][j]=0;
-		}
-	}
-	int K;
-	cin>>K;
-	for(int i=0; i<K; i++){
-		int x,y;
-		cin>>x>>y;
-		A[x-1][y-1]=1;
-	}
-	
-	int dp[1001][1001]; /* dp[i][j] = sum of submatrix top-left(0,0) to bottom-right(i,j) */
-	for(int i=0; i<1001; i++){
-		for(int j=0; j<1001; j++){
-			dp[i][j]=0;
-		}
-	}
-	for(int i=1; i<=N; i++){
-		for(int j=1; j<=M; j++){
-			dp[i][j] = dp[i-1][j]+dp[i][j-1]-dp[i-1][j-1]+A[i-1][j-1];
-		}
-	}
-	/* applying binary search */
-	int l=1, r=min(M,N);
-	int ones;
-	while(l<r){
-		int mid = (l+r)/2;
-		ones = fun(dp,N,M,mid);
-		//if no. of ones > 1 means we need to decrease the submatix size 
-		if(ones >1){
-			r = mid;
-		}
-		//else increase the submatrix size
-		else{
-			l = mid+1;
-		}
-	}
-	/* output */
-	cout<<xb<<" "<<yb<<" "<<xt<<" "<<yt<<endl;
-	return 0;
+    // Fast I/O
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
+
+    int T; // Number of test cases
+    if (!(cin >> T)) return 0;
+    
+    for(int i=1; i<=T; i++){
+        solve(i);
+    }
+    
+    return 0;
 }
