@@ -1,248 +1,132 @@
-#define _CRT_SECURE_NO_WARNINGS 
-#include<iostream> 
-using namespace std; 
-#define MAX 3 
+#include <iostream>
+#include <vector>
+#include <algorithm>
+#include <climits>
+#include <cstring>
 
-int fishspot[100]; // fishing spots 
-int gate[MAX]; // position of gates 
-int fishermen[MAX]; // no of fishermen at each gate 
-int N; // total no of fishing spots 
-int visited[MAX]; // occupied fishing spots 
-int Answer; // result 
+using namespace std;
 
-// To unmark spots occupied by fishermen of gate# index 
-class GFG 
-{ 
-public : 
-void reset_fishspot(int index) 
-{ 
-	int i; 
-	for (i = 1; i <= N; i++) 
-		if (fishspot[i] == index + 1) 
-			fishspot[i] = 0; 
-} 
+struct Gate {
+    int id;
+    int loc;
+    int num;
+};
 
-// Calculate minimum distance while 
-// allotting spots to fishermen of gate# index. 
-// Returns number of positions possible 
-// with minimum disance. 
-// pos1, pos2 is used to return positions 
-int calculate_distance(int index, int*pos1, 
-					int *pos2, int *score) 
-{ 
-	int i, sum = 0, left_min = 999999, 
-					right_min = 999999, 
-					left, right, npos = 0; 
-	*pos1 = *pos2 = *score = 0; 
+int N;
+Gate initial_gates[3];
+Gate perm_gates[3];
+int min_total_distance;
 
-	left = right = gate[index]; 
+void solve(int k, int current_dist, bool occupied[]);
+void place_fishermen_for_gate(int k, int current_dist, bool occupied[], int gate_loc, int remaining);
 
-	// Allot spots to all fishermen except 
-	// last based on minimum distance 
-	for (i = 1; i < fishermen[index]; i++) 
-	{ 
-		if (fishspot[gate[index]] == 0) 
-		{ 
-			sum++; 
-			fishspot[gate[index]] = index + 1; 
-		} 
-		else
-		{ 
-			left_min = right_min = 999999; 
+void solve(int k, int current_dist, bool occupied[]) {
+    // All 3 gates processed
+    if (k == 3) {
+        min_total_distance = min(min_total_distance, current_dist);
+        return;
+    }
 
-			while ((left > 0) && (fishspot[left] > 0)) 
-				left--; 
+    // Prune unnecessary branches
+    if (current_dist >= min_total_distance)
+        return;
 
-			while ((right <= N) && 
-				(fishspot[right] > 0)) 
-				right++; 
+    // Process fishermen for current gate
+    place_fishermen_for_gate(k, current_dist, occupied, perm_gates[k].loc, perm_gates[k].num);
+}
 
-			if ((left > 0) && (fishspot[left] == 0)) 
-				left_min = gate[index] - left + 1; 
+void place_fishermen_for_gate(int k, int current_dist, bool occupied[], int gate_loc, int remaining) {
+    if (remaining == 0) {
+        // Move to next gate once all fishermen placed
+        solve(k + 1, current_dist, occupied);
+        return;
+    }
 
-			if ((right <= N) && (fishspot[right] == 0)) 
-				right_min = right - gate[index] + 1; 
+    if (current_dist >= min_total_distance)
+        return;
 
-			if (right_min == left_min) 
-			{ 
-				// Place 2 fishermen, if avaiable 
-				if ((fishermen[index] - i - 1) > 1) 
-				{ 
-					fishspot[left] = fishspot[right] = index + 1; 
-					sum += (2 * left_min); 
-					i++; 
+    int d = 0;
+    while (true) {
+        int left_spot = gate_loc - d;
+        int right_spot = gate_loc + d;
 
-					// If all fishermen are alloted spots 
-					if (i == fishermen[index]) 
-					{ 
-						npos = 1; 
-						*score = sum; 
-						return npos; 
-					} 
-				} 
-				else
-				{ 
-					sum += left_min; 
-					fishspot[left] = index + 1; 
-				} 
-			} 
-			else if (left_min < right_min) 
-			{ 
-				sum += left_min; 
-				fishspot[left] = index + 1; 
-			} 
-			else if (right_min < left_min) 
-			{ 
-				sum += right_min; 
-				fishspot[right] = index + 1; 
-			} 
-		} 
-	} 
+        bool left_valid = (left_spot >= 1 && left_spot <= N);
+        bool right_valid = (right_spot >= 1 && right_spot <= N);
 
-	left_min = right_min = 99999; 
+        bool left_available = left_valid && !occupied[left_spot];
+        bool right_available = right_valid && !occupied[right_spot];
 
-	// Allot spot to last fishermen 
-	while ((left > 0) && (fishspot[left] > 0)) 
-		left--; 
+        int dist_to_add = d + 1;
 
-	if ((left > 0) && (fishspot[left] == 0)) 
-		left_min = gate[index] - left + 1; 
+        if (left_available && right_available) {
+            if (remaining == 1) {
+                // Last fisherman → branch both choices
+                bool occupied_A[N + 1];
+                memcpy(occupied_A, occupied, sizeof(bool) * (N + 1));
+                occupied_A[left_spot] = true;
+                place_fishermen_for_gate(k, current_dist + dist_to_add, occupied_A, gate_loc, remaining - 1);
 
-	while ((right <= N) && (fishspot[right] > 0)) 
-		right++; 
+                bool occupied_B[N + 1];
+                memcpy(occupied_B, occupied, sizeof(bool) * (N + 1));
+                occupied_B[right_spot] = true;
+                place_fishermen_for_gate(k, current_dist + dist_to_add, occupied_B, gate_loc, remaining - 1);
+            } else {
+                // Not last fisherman → choose one side arbitrarily (left)
+                bool new_occupied[N + 1];
+                memcpy(new_occupied, occupied, sizeof(bool) * (N + 1));
+                new_occupied[left_spot] = true;
+                place_fishermen_for_gate(k, current_dist + dist_to_add, new_occupied, gate_loc, remaining - 1);
+            }
+            break; // FIX: was 'return;' before
+        } 
+        else if (left_available) {
+            bool new_occupied[N + 1];
+            memcpy(new_occupied, occupied, sizeof(bool) * (N + 1));
+            new_occupied[left_spot] = true;
+            place_fishermen_for_gate(k, current_dist + dist_to_add, new_occupied, gate_loc, remaining - 1);
+            break; // FIX: was 'return;'
+        } 
+        else if (right_available) {
+            bool new_occupied[N + 1];
+            memcpy(new_occupied, occupied, sizeof(bool) * (N + 1));
+            new_occupied[right_spot] = true;
+            place_fishermen_for_gate(k, current_dist + dist_to_add, new_occupied, gate_loc, remaining - 1);
+            break; // FIX: was 'return;'
+        }
 
-	if ((right <= N) && (fishspot[right] == 0)) 
-		right_min = right - gate[index] + 1; 
+        d++; // increase distance until we find a free spot
+    }
+}
 
-	if ((sum + left_min) == (sum + right_min)) 
-	{ 
-		npos = 2; 
-		*pos1 = left; 
-		*pos2 = right; 
-		*score = sum + left_min; 
-	} 
-	else if ((sum + left_min) > 
-			(sum + right_min)) 
-	{ 
-		npos = 1; 
-		*score = sum + right_min; 
-		fishspot[right] = index + 1; 
-	} 
-	else if ((sum + left_min) < 
-			(sum + right_min)) 
-	{ 
-		npos = 1; 
-		*score = sum + left_min; 
-		fishspot[left] = index + 1; 
-	} 
-	return npos; 
-} 
+int main() {
+    ios_base::sync_with_stdio(false);
+    cin.tie(NULL);
 
-// Solve is used to select next gate 
-// and generate all combinations. 
-void solve(int index, int sum, int count) 
-{ 
-	int npos, pos1, pos2, score, i; 
+    int T;
+    cin >> T;
+    for (int t = 1; t <= T; ++t) {
+        cin >> N;
+        for (int i = 0; i < 3; ++i) {
+            initial_gates[i].id = i;
+            cin >> initial_gates[i].loc >> initial_gates[i].num;
+        }
 
-	visited[index] = 1; 
+        int p[] = {0, 1, 2};
+        min_total_distance = INT_MAX;
 
-	if (sum > Answer) 
-		return; 
+        // Try all permutations of gate entry orders
+        do {
+            for (int i = 0; i < 3; ++i)
+                perm_gates[i] = initial_gates[p[i]];
 
-	npos = calculate_distance(index, &pos1, 
-							&pos2, &score); 
-	sum += score; 
+            bool occupied[N + 1];
+            memset(occupied, false, sizeof(occupied));
 
-	if (count == MAX) 
-	{ 
-		if (Answer > sum) 
-			Answer = sum; 
+            solve(0, 0, occupied);
+        } while (next_permutation(p, p + 3));
 
-		return; 
-	} 
+        cout << "#" << t << " " << min_total_distance << "\n";
+    }
 
-	if (npos == 1) 
-	{ 
-		for (i = 0; i < MAX; i++) 
-		{ 
-			if (visited[i] == 0) 
-			{ 
-				solve(i, sum, count + 1); 
-				visited[i] = 0; 
-				reset_fishspot(i); 
-			} 
-		} 
-	} 
-	
-	else if (npos == 2) 
-	{ 
-		fishspot[pos1] = index + 1; 
-		for (i = 0; i < MAX; i++) 
-		{ 
-			if (visited[i] == 0) 
-			{ 
-				solve(i, sum, count + 1); 
-				visited[i] = 0; 
-				reset_fishspot(i); 
-			} 
-		} 
-
-		fishspot[pos1] = 0; 
-		fishspot[pos2] = index + 1; 
-		for (i = 0; i < MAX; i++) 
-		{ 
-			if (visited[i] == 0) 
-			{ 
-				solve(i, sum, count + 1); 
-				visited[i] = 0; 
-				reset_fishspot(i); 
-			} 
-		} 
-		fishspot[pos2] = 0; 
-	} 
-} 
-}; 
-
-// Driver Code 
-int main() 
-{ 
-	GFG g; 
-
-	int i; 
-	/*scanf("%d", &N); // for input 
-		
-	for (i = 0; i < MAX; i++) 
-	{ 
-		scanf("%d %d", &gate[i], &fishermen[i]); 
-		visited[i] = 0; 
-	}*/
-	
-	N = 10; // total no of fishing spots 
-	
-	// position of gates(1-based indexing) 
-	gate[0] = 4; 
-	gate[1] = 6; 
-	gate[2] = 10; 
-	
-	//no of fishermen at each gate 
-	fishermen[0] = 5; //gate1 
-	fishermen[1] = 2; //gate 2 
-	fishermen[2] = 2; //gate 3 
-
-	for (i = 1; i <= N; i++) 
-		fishspot[i] = 0; 
-
-	Answer = 999999; 
-
-	for (i = 0; i < MAX; i++) 
-	{ 
-		g.solve(i, 0, 1); 
-		visited[i] = 0; 
-		g.reset_fishspot(i); 
-	} 
-
-	cout << Answer << endl; 
-
-	return 0; 
-} 
-// This code is contributed by SoM15242 
+    return 0;
+}
